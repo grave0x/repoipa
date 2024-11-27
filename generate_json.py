@@ -1,4 +1,4 @@
-from github import Github
+import requests
 import json
 import argparse
 import pandas as pd
@@ -7,7 +7,7 @@ import os
 import mistletoe
 from bs4 import BeautifulSoup
 from io import StringIO
-
+from github import Github
 
 def transform_object(original_object):
     transformed_object = {**original_object, 'apps': None}
@@ -44,12 +44,29 @@ def transform_object(original_object):
 
     return transformed_object
 
+def scrape_and_combine_json(urls):
+    combined_data = {}
+
+    for url in urls:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Check if the request was successful
+            data = response.json()
+            combined_data.update(data)  # Merge the data into the combined dictionary
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching data from {url}: {e}")
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON from {url}: {e}")
+
+    return combined_data
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--token", help="Github token")
+    parser.add_argument("-u", "--urls", nargs='+', help="List of JSON URLs to scrape and combine")
     args = parser.parse_args()
     token = args.token
+    json_urls = args.urls
 
     with open("apps.json", "r") as f:
         data = json.load(f)
@@ -69,8 +86,13 @@ if __name__ == "__main__":
         md_df = pd.read_html(StringIO(str(table)),keep_default_na=False)[0]
         md_df['App Name'] = md_df['App Name'].str.replace(' ', '').str.lower()
 
-    # clear apps
+    # Clear apps
     data["apps"] = []
+
+    # Scrape and combine JSON data from provided URLs
+    if json_urls:
+        combined_data = scrape_and_combine_json(json_urls)
+        data.update(combined_data)  # Merge the combined JSON data into the main data
 
     g = Github(token)
     repo = g.get_repo("grave0x/repoipa")
