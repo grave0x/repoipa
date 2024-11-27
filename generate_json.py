@@ -1,4 +1,4 @@
-import requests
+from github import Github
 import json
 import argparse
 import pandas as pd
@@ -7,7 +7,7 @@ import os
 import mistletoe
 from bs4 import BeautifulSoup
 from io import StringIO
-from github import Github
+import requests
 
 def transform_object(original_object):
     transformed_object = {**original_object, 'apps': None}
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         html = mistletoe.markdown(raw_md)
         soup = BeautifulSoup(html, 'html.parser')
         table = soup.find_all('table')[1]
-        md_df = pd.read_html(StringIO(str(table)),keep_default_na=False)[0]
+        md_df = pd.read_html(StringIO(str(table)), keep_default_na=False)[0]
         md_df['App Name'] = md_df['App Name'].str.replace(' ', '').str.lower()
 
     # Clear apps
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         print(release.title)
 
         for asset in release.get_assets():
-            if (asset.name[-3:] != "ipa"):
+            if asset.name[-3:] != "ipa":
                 continue
             name = asset.name[:-4]
             date = asset.created_at.strftime("%Y-%m-%d")
@@ -118,7 +118,7 @@ if __name__ == "__main__":
                 bundle_id = get_single_bundle_id(asset.browser_download_url)
                 df = pd.concat([df, pd.DataFrame(
                     {"name": [app_name], "bundleId": [bundle_id]})], ignore_index=True)
-                
+
             desc = ""
             dev_name = ""
             if md_df is not None:
@@ -153,6 +153,6 @@ if __name__ == "__main__":
         original_object = json.load(file)
 
     transformed_object = transform_object(original_object)
-    
+
     with open('apps.json', 'w') as file:
         json.dump(transformed_object, file, indent=2)
